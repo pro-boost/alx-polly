@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { Session, User } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 const AuthContext = createContext<{ 
   session: Session | null;
@@ -27,13 +28,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const getUser = async () => {
       const { data, error } = await supabase.auth.getUser();
       if (error) {
-        console.error('Error fetching user:', error);
+        logger.error('Error fetching user during initialization', { error: error.message });
       }
       if (mounted) {
         setUser(data.user ?? null);
         setSession(null);
         setLoading(false);
-        console.log('AuthContext: Initial user loaded', data.user);
+        logger.authEvent('Initial user loaded', data.user?.id);
       }
     };
 
@@ -43,7 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       // Do not set loading to false here, only after initial load
-      console.log('AuthContext: Auth state changed', _event, session, session?.user);
+      logger.authEvent(`Auth state changed: ${_event}`, session?.user?.id, { event: _event });
     });
 
     return () => {
@@ -56,7 +57,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signOut();
   };
 
-  console.log('AuthContext: user', user);
   return (
     <AuthContext.Provider value={{ session, user, signOut, loading }}>
       {children}

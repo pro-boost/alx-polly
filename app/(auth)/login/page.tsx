@@ -2,32 +2,37 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { login } from '@/app/lib/actions/auth-actions';
+import { getSafeRedirectURL } from '@/lib/secure-redirect';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setLoading(true);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
     setError(null);
 
-    const formData = new FormData(event.currentTarget);
+    const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
     const result = await login({ email, password });
 
-    if (result?.error) {
+    if (result.error) {
       setError(result.error);
-      setLoading(false);
+      setIsLoading(false);
     } else {
-      window.location.href = '/polls'; // Full reload to pick up session
+      // Use secure redirect with fallback
+      const redirectURL = getSafeRedirectURL(searchParams, '/polls');
+      window.location.href = redirectURL;
     }
   };
 
@@ -62,8 +67,8 @@ export default function LoginPage() {
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
         </CardContent>

@@ -2,15 +2,40 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { register } from '@/app/lib/actions/auth-actions';
+import { getSafeRedirectURL } from '@/lib/secure-redirect';
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+
+  /**
+   * Validates password strength requirements
+   */
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long';
+    }
+    if (!/(?=.*[a-z])/.test(password)) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    if (!/(?=.*[A-Z])/.test(password)) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!/(?=.*\d)/.test(password)) {
+      return 'Password must contain at least one number';
+    }
+    if (!/(?=.*[@$!%*?&])/.test(password)) {
+      return 'Password must contain at least one special character (@$!%*?&)';
+    }
+    return null;
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -21,6 +46,14 @@ export default function RegisterPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
+
+    // Validate password strength
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
+      setLoading(false);
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -34,7 +67,9 @@ export default function RegisterPage() {
       setError(result.error);
       setLoading(false);
     } else {
-      window.location.href = '/polls'; // Full reload to pick up session
+      // Use secure redirect with fallback
+      const redirectURL = getSafeRedirectURL(searchParams, '/polls');
+      window.location.href = redirectURL; // Full reload to pick up session
     }
   };
 
@@ -77,6 +112,16 @@ export default function RegisterPage() {
                 required
                 autoComplete="new-password"
               />
+              <div className="text-xs text-slate-500 space-y-1">
+                <p>Password must contain:</p>
+                <ul className="list-disc list-inside space-y-0.5 ml-2">
+                  <li>At least 8 characters</li>
+                  <li>One uppercase letter</li>
+                  <li>One lowercase letter</li>
+                  <li>One number</li>
+                  <li>One special character (@$!%*?&)</li>
+                </ul>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
